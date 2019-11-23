@@ -46,19 +46,19 @@ def search(item):
             else:
                 listitem.setProperty("hearing_imp", "false")
 
-            url = "plugin://%s/?action=download&link=%s&id=%s&filename=%s&language=%s" % (
-                __scriptid__, it["link"], it["id"], it["filename"], it["language_flag"])
+            url = "plugin://%s/?action=download&id=%s&filename=%s&language=%s" % (
+                __scriptid__, it["id"], it["filename"], it["language_flag"])
             xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=url, listitem=listitem, isFolder=False)
 
 
-def download(id, language, key, filename):
+def download(id, language, filename):
     subtitle_list = []
     exts = [".srt", ".sub"]
 
-    zip_filename = os.path.join(__temp__, "subs.zip")
+    filename = os.path.join(__temp__, "%s.srt" % filename)
 
     helper = SubsHelper()
-    helper.download(id, language, key, filename, zip_filename)
+    helper.download(id, language, filename)
 
     for file in xbmcvfs.listdir(__temp__)[1]:
         full_path = os.path.join(__temp__, file)
@@ -153,7 +153,7 @@ if params['action'] in ['search', 'manualsearch']:
 
 elif params['action'] == 'download':
     ## we pickup all our arguments sent from def search()
-    subs = download(params["id"], params["language"], params["link"], params["filename"])
+    subs = download(params["id"], params["language"], params["filename"])
     ## we can return more than one subtitle for multi CD versions, for now we are still working out how to handle that in XBMC core
     for sub in subs:
         listitem = xbmcgui.ListItem(label=sub)

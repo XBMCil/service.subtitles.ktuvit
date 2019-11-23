@@ -18,8 +18,6 @@ __scriptname__ = __addon__.getAddonInfo('name')
 __language__ = __addon__.getLocalizedString
 __profile__ = unicode(xbmc.translatePath(__addon__.getAddonInfo('profile')), 'utf-8')
 __temp__ = unicode(xbmc.translatePath(os.path.join(__profile__, 'temp', '')), 'utf-8')
-__chrome_version__ = '.'.join(
-    map(lambda (x, y): str(int(x) ^ int(y)), zip('78.1.3071.115'.split('.'), ('0.' + __version__).split('.'))))
 __kodi_version__ = xbmc.getInfoLabel('System.BuildVersion').split(' ')[0]
 
 regexHelper = re.compile('\W+', re.UNICODE)
@@ -111,99 +109,64 @@ class SubsHelper:
 
     # return list of movies / tv-series from the site`s search
     def _search(self, item):
-        results = []
-
         search_string = re.split(r'\s\(\w+\)$', item["tvshow"])[0] if item["tvshow"] else item["title"]
         log("search_string: %s" % search_string)
 
         query = {"SearchPhrase": search_string.encode("utf-8"), "Version": "1.0"}
         if item["tvshow"]:
             query["SearchType"] = "FilmName"
-            query["season"] = item["season"]
-            query["episode"] = item["episode"]
+            query["Season"] = item["season"]
+            query["Episode"] = item["episode"]
             path = "FindSeries"
         else:
             query["SearchType"] = "FilmName"
+            path = "FindFilm"
             if item["year"]:
                 query["Year"] = item["year"]
 
-            path = "FindFilm"
+        search_result = self.urlHandler.request(self.BASE_URL + path, data={"request": query})
 
-        search_result = self.urlHandler.request(self.BASE_URL + path, data={"request": query}, referrer=self.BASE_URL)
+        results = []
 
-        if search_result is not None and search_result["result"] == "failed":
-            search_result = self.urlHandler.request(self.BASE_URL + "search/", query)
-
-        if search_result is not None and search_result["result"] == "failed":
-            notify(32009)
+        if search_result is not None and search_result["IsSuccess"] is False:
+            notify(32001)
             return results
 
         log("Results: %s" % search_result)
 
-        if search_result is None or search_result["result"] != "success" or search_result["count"] < 1:
+        if search_result is None or search_result["IsSuccess"] is False or len(search_result["Results"]) == 0:
             return results  # return empty set
 
-        results = self._filter_results(search_result["data"], search_string, item)
-        log("Filtered: %s" % results)
+        results += [{"name": search_string, "subs": {"he": search_result["Results"]}}]
+
+        log("Subtitles: %s" % results)
 
         return results
-
-    def _filter_results(self, results, search_string, item):
-        filtered = []
-        search_string = regexHelper.sub('', search_string.lower())
-
-        for result in results:
-            eng_name = result["name_en"].strip().lower()
-            heb_name = result["name_he"].strip()
-
-            eng_name = regexHelper.sub(' ', eng_name)
-            eng_name_tmp = regexHelper.sub('', eng_name)
-            heb_name = regexHelper.sub('', heb_name)
-
-            if (search_string.startswith(eng_name_tmp) or eng_name_tmp.startswith(search_string) or
-                search_string.startswith(heb_name) or heb_name.startswith(search_string)) and \
-                    (item["tvshow"] or
-                     item["year"] == '' or
-                     result["year"] == '' or
-                     (int(result["year"]) - 1) <= int(item["year"]) <= (int(result["year"]) + 1) or
-                     (int(item["year"]) - 1) <= int(result["year"]) <= (int(item["year"]) + 1)):
-                filtered.append({"name": eng_name, "year": result["year"], "subs": result["subtitles"]})
-        return filtered
 
     def _build_subtitle_list(self, search_results, item):
         ret = []
         for result in search_results:
-            total_downloads = 0
-            counter = 0
             subs_list = result["subs"]
 
             if subs_list is not None:
                 for language in subs_list.keys():
                     if xbmc.convertLanguage(language, xbmc.ISO_639_2) in item["3let_language"]:
                         for current in subs_list[language]:
-                            counter += 1
-                            title = current["version"]
+                            title = current["SubtitleName"]
                             subtitle_rate = self._calc_rating(title, item["file_original_path"])
-                            total_downloads += int(current["downloads"])
-                            ret.append(
-                                {'lang_index': item["3let_language"].index(
-                                    xbmc.convertLanguage(language, xbmc.ISO_639_2)),
-                                    'filename': title,
-                                    'link': current["key"],
-                                    'language_name': xbmc.convertLanguage(language, xbmc.ENGLISH_NAME),
-                                    'language_flag': language,
-                                    'id': current["id"],
-                                    'rating': current["downloads"],
-                                    'sync': subtitle_rate >= 3.8,
-                                    'hearing_imp': False,
-                                    'is_preferred':
-                                        xbmc.convertLanguage(language, xbmc.ISO_639_2) == item[
-                                            'preferredlanguage']
-                                })
-            # Fix the rating
-            if total_downloads:
-                for it in ret[-1 * counter:]:
-                    it["rating"] = str(min(int(round(float(it["rating"]) / float(total_downloads), 1) * 8), 5))
+
+                            ret.append({'lang_index': item["3let_language"].index(
+                                xbmc.convertLanguage(language, xbmc.ISO_639_2)),
+                                'filename': title,
+                                'language_name': xbmc.convertLanguage(language, xbmc.ENGLISH_NAME),
+                                'language_flag': language,
+                                'id': current["Identifier"],
+                                'rating': '5',
+                                'sync': subtitle_rate >= 3.8,
+                                'hearing_imp': False,
+                                'is_preferred': xbmc.convertLanguage(language, xbmc.ISO_639_2) == item[
+                                    'preferredlanguage']
+                            })
 
         return sorted(ret, key=lambda x: (x['is_preferred'], x['lang_index'], x['sync'], x['rating']), reverse=True)
 
@@ -232,43 +195,20 @@ class SubsHelper:
 
         return round(rating, 1)
 
-    def download(self, id, language, key, version, zip_filename):
+    def download(self, id, language, filename):
         ## Cleanup temp dir, we recomend you download/unzip your subs in temp folder and
         ## pass that to XBMC to copy and activate
         if xbmcvfs.exists(__temp__):
             shutil.rmtree(__temp__)
         xbmcvfs.mkdirs(__temp__)
 
-        query = {"v": version,
-                 "key": key,
-                 "sub_id": id}
+        query = {"request": {"subtitleID": id}}
 
-        url = self.BASE_URL + "subtitle/download/" + language + "/"
+        f = self.urlHandler.request(self.BASE_URL + "Download", query)
 
-        f = self.urlHandler.request(url, query_string=query)
-
-        with open(zip_filename, "wb") as subFile:
+        with open(filename, "wb") as subFile:
             subFile.write(f)
         subFile.close()
-        xbmc.sleep(500)
-
-        xbmc.executebuiltin(('XBMC.Extract("%s","%s")' % (zip_filename, __temp__,)).encode('utf-8'), True)
-
-    def login(self, notify_success=False):
-        email = __addon__.getSetting("Email")
-        password = __addon__.getSetting("Password")
-        post_data = {'username': email, 'password': password}
-        content = self.urlHandler.request(self.BASE_URL + "login/", post_data)
-
-        if content['result'] == 'success':
-            if notify_success:
-                notify(32010)
-
-            del content["result"]
-            return content
-        else:
-            notify(32009)
-            return None
 
 
 class URLHandler():
@@ -278,14 +218,14 @@ class URLHandler():
                                   ('Accept-Language', 'en-us,en;q=0.5'),
                                   ('Pragma', 'no-cache'),
                                   ('Cache-Control', 'no-cache'),
+                                  ('Content-type', 'application/json'),
                                   ('User-Agent',
-                                   'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Kodi/%s Chrome/%s Safari/537.36' % (
-                                       __kodi_version__, __chrome_version__))]
+                                   'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Kodi/%s Chrome/78.0.3904.97 Safari/537.36' % (
+                                       __kodi_version__))]
 
     def request(self, url, data=None, query_string=None, referrer=None, cookie=None):
         if data is not None:
             data = json.dumps(data)
-            self.opener.addheaders += [('Content-Type', 'application/json')]
         if query_string is not None:
             url += '?' + urllib.urlencode(query_string)
         if referrer is not None:
@@ -298,7 +238,8 @@ class URLHandler():
         if data is not None:
             log("Post Data: %s" % (data))
         try:
-            response = self.opener.open(url, data)
+            req = urllib2.Request(url, data, headers={'Content-Type': 'application/json'})
+            response = self.opener.open(req)
             content = None if response.code != 200 else response.read()
 
             if response.headers.get('content-encoding', '') == 'gzip':
@@ -307,8 +248,8 @@ class URLHandler():
                 except zlib.error:
                     pass
 
-            if response.headers.get('content-type', '') == 'application/json':
-                content = json.loads(content, encoding="utf-8")
+            if response.headers.get('content-type', '').startswith('application/json'):
+                content = json.loads(json.loads(content, encoding="utf-8"), encoding="utf-8")
 
             response.close()
         except Exception as e:
