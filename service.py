@@ -129,9 +129,9 @@ def collect_initial_data():
         item_data['file_original_path'] = urllib.unquote(
             unicode(xbmc.Player().getPlayingFile(), 'utf-8'))  # Full path of a playing file
 
-        if item['title'] == "":
+        if item_data['title'] == "":
             log("VideoPlayer.OriginalTitle not found")
-            item['title'] = normalizeString(xbmc.getInfoLabel("VideoPlayer.Title"))  # no original title, get just Title
+            item_data['title'] = normalizeString(xbmc.getInfoLabel("VideoPlayer.Title"))  # no original title, get just Title
 
     else:
         item_data['year'] = xbmc.getInfoLabel("ListItem.Year")
