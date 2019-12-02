@@ -2,7 +2,9 @@
 
 import os
 import sys
-import urllib
+import urllib.parse
+import urllib.request
+
 import xbmc
 import xbmcvfs
 import xbmcaddon
@@ -16,10 +18,10 @@ __scriptname__ = __addon__.getAddonInfo('name')
 __version__ = __addon__.getAddonInfo('version')
 __language__ = __addon__.getLocalizedString
 
-__cwd__ = unicode(xbmc.translatePath(__addon__.getAddonInfo('path')), 'utf-8')
-__profile__ = unicode(xbmc.translatePath(__addon__.getAddonInfo('profile')), 'utf-8')
-__resource__ = unicode(xbmc.translatePath(os.path.join(__cwd__, 'resources', 'lib')), 'utf-8')
-__temp__ = unicode(xbmc.translatePath(os.path.join(__profile__, 'temp')), 'utf-8')
+__cwd__ = xbmc.translatePath(__addon__.getAddonInfo('path'))
+__profile__ = xbmc.translatePath(__addon__.getAddonInfo('profile'))
+__resource__ = xbmc.translatePath(os.path.join(__cwd__, 'resources', 'lib'))
+__temp__ = xbmc.translatePath(os.path.join(__profile__, 'temp'))
 
 sys.path.append(__resource__)
 
@@ -114,7 +116,7 @@ def collect_initial_data():
         'temp': False,
         'rar': False,
         '3let_language': [],
-        'preferredlanguage': unicode(urllib.unquote(params.get('preferredlanguage', '')), 'utf-8')
+        'preferredlanguage': urllib.parse.unquote(params.get('preferredlanguage', ''))
     }
 
     item_data['preferredlanguage'] = xbmc.convertLanguage(item_data['preferredlanguage'], xbmc.ISO_639_2)
@@ -124,14 +126,12 @@ def collect_initial_data():
         item_data['season'] = str(xbmc.getInfoLabel("VideoPlayer.Season"))  # Season
         item_data['episode'] = str(xbmc.getInfoLabel("VideoPlayer.Episode"))  # Episode
         item_data['tvshow'] = normalizeString(xbmc.getInfoLabel("VideoPlayer.TVshowtitle"))  # Show
-        item_data['title'] = normalizeString(
-            xbmc.getInfoLabel("VideoPlayer.OriginalTitle"))  # try to get original title
-        item_data['file_original_path'] = urllib.unquote(
-            unicode(xbmc.Player().getPlayingFile(), 'utf-8'))  # Full path of a playing file
+        item_data['title'] = normalizeString(xbmc.getInfoLabel("VideoPlayer.OriginalTitle"))  # try to get original title
+        item_data['file_original_path'] = urllib.parse.unquote(xbmc.Player().getPlayingFile())  # Full path of a playing file
 
-        if item['title'] == "":
+        if item_data['title'] == "":
             log("VideoPlayer.OriginalTitle not found")
-            item['title'] = normalizeString(xbmc.getInfoLabel("VideoPlayer.Title"))  # no original title, get just Title
+            item_data['title'] = normalizeString(xbmc.getInfoLabel("VideoPlayer.Title"))  # no original title, get just Title
 
     else:
         item_data['year'] = xbmc.getInfoLabel("ListItem.Year")
@@ -149,7 +149,7 @@ if params['action'] in ['search', 'manualsearch']:
     log("Action '%s' called" % (params['action']))
 
     if params['action'] == 'manualsearch':
-        params['searchstring'] = urllib.unquote(params['searchstring'])
+        params['searchstring'] = urllib.parse.unquote(params['searchstring'])
 
     item = collect_initial_data()
 
@@ -159,7 +159,7 @@ if params['action'] in ['search', 'manualsearch']:
         else:
             item['title'] = params['searchstring']
 
-    for lang in unicode(urllib.unquote(params['languages']), 'utf-8').split(","):
+    for lang in urllib.parse.unquote(params['languages']).split(","):
         item['3let_language'].append(xbmc.convertLanguage(lang, xbmc.ISO_639_2))
 
     log("Item before cleaning: \n    %s" % item)
