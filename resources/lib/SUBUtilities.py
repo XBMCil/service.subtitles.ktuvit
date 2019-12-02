@@ -2,7 +2,7 @@
 import os
 import re
 import urllib
-import urllib2
+import urllib.request
 import unicodedata
 import json
 import zlib
@@ -16,8 +16,8 @@ __addon__ = xbmcaddon.Addon()
 __version__ = __addon__.getAddonInfo('version')  # Module version
 __scriptname__ = __addon__.getAddonInfo('name')
 __language__ = __addon__.getLocalizedString
-__profile__ = unicode(xbmc.translatePath(__addon__.getAddonInfo('profile')), 'utf-8')
-__temp__ = unicode(xbmc.translatePath(os.path.join(__profile__, 'temp', '')), 'utf-8')
+__profile__ = xbmc.translatePath(__addon__.getAddonInfo('profile'))
+__temp__ = xbmc.translatePath(os.path.join(__profile__, 'temp', ''))
 __kodi_version__ = xbmc.getInfoLabel('System.BuildVersion').split(' ')[0]
 
 regexHelper = re.compile('\W+', re.UNICODE)
@@ -26,10 +26,8 @@ regexHelper = re.compile('\W+', re.UNICODE)
 # ===============================================================================
 # Private utility functions
 # ===============================================================================
-def normalizeString(str):
-    return unicodedata.normalize(
-        'NFKD', unicode(unicode(str, 'utf-8'))
-    ).encode('utf-8', 'ignore')
+def normalizeString(_str):
+    return unicodedata.normalize('NFKD', _str) #.encode('utf-8', 'ignore')
 
 
 def clean_title(item):
@@ -52,11 +50,9 @@ def clean_title(item):
     else:
         item["tvshow"] = tvshow[0]
 
-    item["title"] = unicode(item["title"], "utf-8")
-    item["tvshow"] = unicode(item["tvshow"], "utf-8")
     # Removes country identifier at the end
-    item["title"] = re.sub(r'\([^\)]+\)\W*$', '', item["title"]).strip()
-    item["tvshow"] = re.sub(r'\([^\)]+\)\W*$', '', item["tvshow"]).strip()
+    item['title'] = re.sub(r'\([^\)]+\)\W*$', '', item['title']).strip()
+    item['tvshow'] = re.sub(r'\([^\)]+\)\W*$', '', item['tvshow']).strip()
 
 
 def parse_rls_title(item):
@@ -88,7 +84,7 @@ def parse_rls_title(item):
 
 
 def log(msg):
-    xbmc.log((u"### [%s] - %s" % (__scriptname__, msg,)).encode('utf-8'), level=xbmc.LOGDEBUG)
+    xbmc.log("### [%s] - %s" % (__scriptname__, msg), level=xbmc.LOGDEBUG)
 
 
 def notify(msg_id):
@@ -112,7 +108,7 @@ class SubsHelper:
         search_string = re.split(r'\s\(\w+\)$', item["tvshow"])[0] if item["tvshow"] else item["title"]
         log("search_string: %s" % search_string)
 
-        query = {"SearchPhrase": search_string.encode("utf-8"), "Version": "1.0"}
+        query = {"SearchPhrase": search_string, "Version": "1.0"}
         if item["tvshow"]:
             query["SearchType"] = "FilmName"
             query["Season"] = item["season"]
@@ -213,7 +209,7 @@ class SubsHelper:
 
 class URLHandler():
     def __init__(self):
-        self.opener = urllib2.build_opener()
+        self.opener = urllib.request.build_opener()
         self.opener.addheaders = [('Accept-Encoding', 'gzip'),
                                   ('Accept-Language', 'en-us,en;q=0.5'),
                                   ('Pragma', 'no-cache'),
@@ -225,7 +221,7 @@ class URLHandler():
 
     def request(self, url, data=None, query_string=None, referrer=None, cookie=None):
         if data is not None:
-            data = json.dumps(data)
+            data = json.dumps(data).encode('utf8')
         if query_string is not None:
             url += '?' + urllib.urlencode(query_string)
         if referrer is not None:
@@ -238,7 +234,7 @@ class URLHandler():
         if data is not None:
             log("Post Data: %s" % (data))
         try:
-            req = urllib2.Request(url, data, headers={'Content-Type': 'application/json'})
+            req = urllib.request.Request(url, data, headers={'Content-Type': 'application/json'})
             response = self.opener.open(req)
             content = None if response.code != 200 else response.read()
 
