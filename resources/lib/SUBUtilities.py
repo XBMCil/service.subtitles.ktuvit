@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
 import re
-import urllib
-import urllib.request
 import unicodedata
 import json
 import zlib
@@ -11,6 +9,15 @@ import shutil
 import xbmc
 import xbmcvfs
 import xbmcaddon
+
+try:
+    # Python 3 - Kodi 19
+    from urllib.request import Request, build_opener
+    from urllib.parse import urlencode
+except ImportError:
+    # Python 2 - Kodi 18 and below
+    from urllib2 import Request, build_opener
+    from urllib import urlencode
 
 __addon__ = xbmcaddon.Addon()
 __version__ = __addon__.getAddonInfo('version')  # Module version
@@ -22,12 +29,13 @@ __kodi_version__ = xbmc.getInfoLabel('System.BuildVersion').split(' ')[0]
 
 regexHelper = re.compile('\W+', re.UNICODE)
 
-
 # ===============================================================================
 # Private utility functions
 # ===============================================================================
 def normalizeString(_str):
-    return unicodedata.normalize('NFKD', _str) #.encode('utf-8', 'ignore')
+    if not isinstance(_str, str):
+        _str = unicodedata.normalize('NFKD', _str) #.encode('utf-8', 'ignore')
+    return _str
 
 
 def clean_title(item):
@@ -209,7 +217,7 @@ class SubsHelper:
 
 class URLHandler():
     def __init__(self):
-        self.opener = urllib.request.build_opener()
+        self.opener = build_opener()
         self.opener.addheaders = [('Accept-Encoding', 'gzip'),
                                   ('Accept-Language', 'en-us,en;q=0.5'),
                                   ('Pragma', 'no-cache'),
@@ -223,7 +231,7 @@ class URLHandler():
         if data is not None:
             data = json.dumps(data).encode('utf8')
         if query_string is not None:
-            url += '?' + urllib.urlencode(query_string)
+            url += '?' + urlencode(query_string)
         if referrer is not None:
             self.opener.addheaders += [('Referrer', referrer)]
         if cookie is not None:
@@ -234,7 +242,7 @@ class URLHandler():
         if data is not None:
             log("Post Data: %s" % (data))
         try:
-            req = urllib.request.Request(url, data, headers={'Content-Type': 'application/json'})
+            req = Request(url, data, headers={'Content-Type': 'application/json'})
             response = self.opener.open(req)
             content = None if response.code != 200 else response.read()
 
