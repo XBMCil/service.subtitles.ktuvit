@@ -2,14 +2,21 @@
 
 import os
 import sys
-import urllib.parse
-import urllib.request
 
 import xbmc
-import xbmcvfs
 import xbmcaddon
 import xbmcgui
 import xbmcplugin
+import xbmcvfs
+
+try:
+    # Python 3 - Kodi 19
+    from urllib.parse import urlparse, unquote
+    from urllib.request import Request
+except ImportError:
+    # Python 2 - Kodi 18 and below
+    from urlparse import urlparse, unquote
+    from urllib2 import Request
 
 __addon__ = xbmcaddon.Addon()
 __author__ = __addon__.getAddonInfo('author')
@@ -116,7 +123,7 @@ def collect_initial_data():
         'temp': False,
         'rar': False,
         '3let_language': [],
-        'preferredlanguage': urllib.parse.unquote(params.get('preferredlanguage', ''))
+        'preferredlanguage': unquote(params.get('preferredlanguage', ''))
     }
 
     item_data['preferredlanguage'] = xbmc.convertLanguage(item_data['preferredlanguage'], xbmc.ISO_639_2)
@@ -127,7 +134,7 @@ def collect_initial_data():
         item_data['episode'] = str(xbmc.getInfoLabel("VideoPlayer.Episode"))  # Episode
         item_data['tvshow'] = normalizeString(xbmc.getInfoLabel("VideoPlayer.TVshowtitle"))  # Show
         item_data['title'] = normalizeString(xbmc.getInfoLabel("VideoPlayer.OriginalTitle"))  # try to get original title
-        item_data['file_original_path'] = urllib.parse.unquote(xbmc.Player().getPlayingFile())  # Full path of a playing file
+        item_data['file_original_path'] = unquote(xbmc.Player().getPlayingFile())  # Full path of a playing file
 
         if item_data['title'] == "":
             log("VideoPlayer.OriginalTitle not found")
@@ -149,7 +156,7 @@ if params['action'] in ['search', 'manualsearch']:
     log("Action '%s' called" % (params['action']))
 
     if params['action'] == 'manualsearch':
-        params['searchstring'] = urllib.parse.unquote(params['searchstring'])
+        params['searchstring'] = unquote(params['searchstring'])
 
     item = collect_initial_data()
 
@@ -159,7 +166,7 @@ if params['action'] in ['search', 'manualsearch']:
         else:
             item['title'] = params['searchstring']
 
-    for lang in urllib.parse.unquote(params['languages']).split(","):
+    for lang in unquote(params['languages']).split(","):
         item['3let_language'].append(xbmc.convertLanguage(lang, xbmc.ISO_639_2))
 
     log("Item before cleaning: \n    %s" % item)
