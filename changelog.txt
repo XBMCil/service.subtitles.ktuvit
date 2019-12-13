@@ -1,3 +1,6 @@
+1.2.0 - by sagiben (13/12/2019)
+- Add support for KODI 19
+
 1.1.1 - by CaTz (01/12/2019)
 - bug-fix: write on the correct dict
 
