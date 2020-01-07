@@ -10,6 +10,12 @@ import xbmc
 import xbmcvfs
 import xbmcaddon
 
+from unicodedata import normalize
+from os import path
+from requests import get
+from json import loads, load
+from time import time
+
 try:
     # Python 3 - Kodi 19
     from urllib.request import Request, build_opener
@@ -260,3 +266,58 @@ class URLHandler():
             log("Failed to get url: %s\n%s" % (url, e))
             # Second parameter is the filename
         return content
+
+
+def title_from_focused_item(item_data):
+    label_type = xbmc.getInfoLabel("ListItem.DBTYPE")  # movie/tvshow/season/episode
+    label_movie_title = xbmc.getInfoLabel("ListItem.OriginalTitle")
+    is_movie = xbmc.getCondVisibility("Container.Content(movies)") or label_type == 'movie'
+    is_episode = xbmc.getCondVisibility("Container.Content(episodes)") or label_type == 'episode'
+
+    title = ''
+    if is_movie and label_movie_title and item_data['year']:
+        title = label_movie_title + " " + item_data['year']
+    elif is_episode and item_data['tvshow'] and item_data['season'] and item_data['episode']:
+        title = ("%s S%.2dE%.2d" % (item_data['tvshow'], int(item_data['season']), int(item_data['episode'])))
+
+    return title
+
+def getTVshowOriginalTitleByTMDBapi():
+    labelTVShowTitle = xbmc.getInfoLabel("ListItem.TVShowTitle")
+    labelYear = xbmc.getInfoLabel("ListItem.Year")
+    tmdbKey = '653bb8af90162bd98fc7ee32bcbbfb3d'
+    filename = 'screwzira.search.tmdb.%s.%s.%s.json' % ("tv",lowercase_with_underscores(labelTVShowTitle), labelYear)
+    if labelYear > 0:
+        url = "http://api.tmdb.org/3/search/%s?api_key=%s&query=%s&year=%s&language=en" % (
+			"tv",tmdbKey, labelTVShowTitle, labelYear)
+    else:
+        url = "http://api.tmdb.org/3/search/%s?api_key=%s&query=%s&language=en" % (
+			"tv",tmdbKey, labelTVShowTitle)
+    
+    log("searchTMDB: %s" % url)
+    json = cachingJSON(filename,url)
+
+    try:
+        originalTitle = json["results"][0]["original_name"]
+    except Exception as err:
+        log('Caught Exception: error searchTMDB: %s' % format(err))
+        return 0    
+
+    return originalTitle
+
+
+def lowercase_with_underscores(str):
+	return normalize('NFKD', unicode(unicode(str, 'utf-8'))).encode('utf-8', 'ignore')
+
+def cachingJSON(filename, url):
+    json_file = path.join(__temp__, filename)
+
+    if not path.exists(json_file) or not path.getsize(json_file) > 20 or (time()-path.getmtime(json_file) > 30*60):
+        data = get(url)
+        open(json_file, 'wb').write(data.content)
+    if path.exists(json_file) and path.getsize(json_file) > 20:
+        with open(json_file,'r') as json_data:
+            json_object = load(json_data)
+        return json_object
+    else:
+        return 0
