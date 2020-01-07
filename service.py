@@ -32,7 +32,7 @@ __temp__ = xbmc.translatePath(os.path.join(__profile__, 'temp'))
 
 sys.path.append(__resource__)
 
-from SUBUtilities import SubsHelper, log, normalizeString, parse_rls_title, clean_title
+from SUBUtilities import SubsHelper, log, normalizeString, parse_rls_title, clean_title, title_from_focused_item, getTVshowOriginalTitleByTMDBapi
 
 
 def search(item):
@@ -100,21 +100,6 @@ def get_params(string=""):
     return param
 
 
-def title_from_focused_item(item_data):
-    label_type = xbmc.getInfoLabel("ListItem.DBTYPE")  # movie/tvshow/season/episode
-    label_movie_title = xbmc.getInfoLabel("ListItem.OriginalTitle")
-    is_movie = xbmc.getCondVisibility("Container.Content(movies)") or label_type == 'movie'
-    is_episode = xbmc.getCondVisibility("Container.Content(episodes)") or label_type == 'episode'
-
-    title = ''
-    if is_movie and label_movie_title and item_data['year']:
-        title = label_movie_title + " " + item_data['year']
-    elif is_episode and item_data['tvshow'] and item_data['season'] and item_data['episode']:
-        title = ("%s S%.2dE%.2d" % (item_data['tvshow'], int(item_data['season']), int(item_data['episode'])))
-
-    return title
-
-
 params = get_params()
 
 
@@ -144,7 +129,7 @@ def collect_initial_data():
         item_data['year'] = xbmc.getInfoLabel("ListItem.Year")
         item_data['season'] = xbmc.getInfoLabel("ListItem.Season")
         item_data['episode'] = xbmc.getInfoLabel("ListItem.Episode")
-        item_data['tvshow'] = xbmc.getInfoLabel("ListItem.TVShowTitle")
+        item_data['tvshow'] = getTVshowOriginalTitleByTMDBapi()
         item_data['title'] = title_from_focused_item(item_data)
         item_data['file_original_path'] = ""
 
