@@ -301,7 +301,7 @@ def getTVshowOriginalTitleByTMDBapi():
         originalTitle = json["results"][0]["original_name"]
     except Exception as err:
         log('Caught Exception: error searchTMDB: %s' % format(err))
-        return 0    
+        return ''    
 
     return originalTitle
 
