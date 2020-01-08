@@ -295,7 +295,7 @@ def getTVshowOriginalTitleByTMDBapi():
 			"tv",tmdbKey, labelTVShowTitle)
     
     log("searchTMDB: %s" % url)
-    json = cachingJSON(filename,url)
+    json = caching_json(filename,url)
 
     try:
         originalTitle = json["results"][0]["original_name"]
@@ -309,7 +309,7 @@ def getTVshowOriginalTitleByTMDBapi():
 def lowercase_with_underscores(str):
 	return normalize('NFKD', unicode(unicode(str, 'utf-8'))).encode('utf-8', 'ignore')
 
-def cachingJSON(filename, url):
+def caching_json(filename, url):
     json_file = path.join(__temp__, filename)
 
     if not path.exists(json_file) or not path.getsize(json_file) > 20 or (time()-path.getmtime(json_file) > 30*60):
