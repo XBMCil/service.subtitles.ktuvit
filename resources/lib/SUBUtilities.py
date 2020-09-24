@@ -100,7 +100,7 @@ def notify(msg_id):
 
 
 class SubsHelper:
-    BASE_URL = "http://api.screwzira.com/"
+    BASE_URL = "http://api.ktuvit.me/"
 
     def __init__(self):
         self.urlHandler = URLHandler()

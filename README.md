@@ -1,4 +1,4 @@
-service.subtitles.screwzira
+service.subtitles.ktuvit
 ==================
 
-screwzira subtitle service for Kodi
+ktuvit.me subtitle service for Kodi
