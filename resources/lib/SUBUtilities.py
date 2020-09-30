@@ -9,6 +9,7 @@ import shutil
 import xbmc
 import xbmcvfs
 import xbmcaddon
+from bs4 import BeautifulSoup
 
 try:
     # Python 3 - Kodi 19
@@ -29,12 +30,13 @@ __kodi_version__ = xbmc.getInfoLabel('System.BuildVersion').split(' ')[0]
 
 regexHelper = re.compile('\W+', re.UNICODE)
 
+
 # ===============================================================================
 # Private utility functions
 # ===============================================================================
 def normalizeString(_str):
     if not isinstance(_str, str):
-        _str = unicodedata.normalize('NFKD', _str) #.encode('utf-8', 'ignore')
+        _str = unicodedata.normalize('NFKD', _str)  # .encode('utf-8', 'ignore')
     return _str
 
 
@@ -96,11 +98,11 @@ def log(msg):
 
 
 def notify(msg_id):
-    xbmc.executebuiltin((u'Notification(%s,%s)' % (__scriptname__, __language__(msg_id))).encode('utf-8'))
+    xbmc.executebuiltin((u'Notification(%s,%s)' % (__scriptname__, __language__(msg_id))))
 
 
 class SubsHelper:
-    BASE_URL = "http://api.ktuvit.me/"
+    BASE_URL = "https://www.ktuvit.me/Services"
 
     def __init__(self):
         self.urlHandler = URLHandler()
@@ -116,61 +118,96 @@ class SubsHelper:
         search_string = re.split(r'\s\(\w+\)$', item["tvshow"])[0] if item["tvshow"] else item["title"]
         log("search_string: %s" % search_string)
 
-        query = {"SearchPhrase": search_string, "Version": "1.0"}
+        query = {"FilmName": search_string,
+                 "Actors": [],
+                 "Studios": None,
+                 "Directors": [],
+                 "Genres": [],
+                 "Countries": [],
+                 "Languages": [],
+                 "Year": "",
+                 "Rating": [],
+                 "Page": 1,
+                 "SearchType": "0",
+                 "WithSubsOnly": False}
         if item["tvshow"]:
-            query["SearchType"] = "FilmName"
-            query["Season"] = item["season"]
-            query["Episode"] = item["episode"]
-            path = "FindSeries"
-        else:
-            query["SearchType"] = "FilmName"
-            path = "FindFilm"
-            if item["year"]:
-                query["Year"] = item["year"]
+            query["SearchType"] = "1"
+        elif item["year"]:
+            query["Year"] = item["year"]
 
-        search_result = self.urlHandler.request(self.BASE_URL + path, data={"request": query})
+        search_result = self.urlHandler.request(self.BASE_URL + "/ContentProvider.svc/SearchPage_search",
+                                                data={"request": query})
 
         results = []
-
-        if search_result is not None and search_result["IsSuccess"] is False:
-            notify(32001)
-            return results
-
         log("Results: %s" % search_result)
 
-        if search_result is None or search_result["IsSuccess"] is False or len(search_result["Results"]) == 0:
+        if search_result is None or len(search_result["Films"]) == 0:
+            notify(32001)
             return results  # return empty set
 
-        results += [{"name": search_string, "subs": {"he": search_result["Results"]}}]
+        ids = []
+        for result in search_result["Films"]:
+            ids.append(result["ID"])
+
+        if item["tvshow"]:
+            results = self._search_tvshow(item, ids)
 
         log("Subtitles: %s" % results)
 
         return results
 
+    def _search_tvshow(self, item, ids):
+        subs = []
+
+        for id in ids:
+            query_string = {
+                "moduleName": "SubtitlesList",
+                "SeriesID": id,
+                "Season": item['season'],
+                "Episode": item['episode']
+            }
+            raw_html = self.urlHandler.request(self.BASE_URL + "/GetModuleAjax.ashx", query_string=query_string)
+
+            movie_list = BeautifulSoup(raw_html, "html.parser")
+            movie_rows = movie_list.find_all("tr")
+
+            for row in movie_rows:
+                columns = row.find_all("td")
+                sub = {
+                    'id': id
+                }
+                for index, column in enumerate(columns):
+                    if index == 0:
+                        sub['rls'] = column.get_text().strip().split("\n")[0]
+                    if index == 4:
+                        sub['downloads'] = column.get_text().strip()
+                    if index == 5:
+                        sub['sub_id'] = column.find("input", attrs={"data-sub-id": True})["data-sub-id"]
+
+                subs.append(sub)
+
+        return subs
+
     def _build_subtitle_list(self, search_results, item):
+        language = 'he'
         ret = []
         for result in search_results:
-            subs_list = result["subs"]
+            title = result["rls"]
+            subtitle_rate = self._calc_rating(title, item["file_original_path"])
 
-            if subs_list is not None:
-                for language in subs_list.keys():
-                    if xbmc.convertLanguage(language, xbmc.ISO_639_2) in item["3let_language"]:
-                        for current in subs_list[language]:
-                            title = current["SubtitleName"]
-                            subtitle_rate = self._calc_rating(title, item["file_original_path"])
-
-                            ret.append({'lang_index': item["3let_language"].index(
-                                xbmc.convertLanguage(language, xbmc.ISO_639_2)),
-                                'filename': title,
-                                'language_name': xbmc.convertLanguage(language, xbmc.ENGLISH_NAME),
-                                'language_flag': language,
-                                'id': current["Identifier"],
-                                'rating': '5',
-                                'sync': subtitle_rate >= 3.8,
-                                'hearing_imp': False,
-                                'is_preferred': xbmc.convertLanguage(language, xbmc.ISO_639_2) == item[
-                                    'preferredlanguage']
-                            })
+            ret.append({'lang_index': item["3let_language"].index(
+                xbmc.convertLanguage(language, xbmc.ISO_639_2)),
+                'filename': title,
+                'language_name': xbmc.convertLanguage(language, xbmc.ENGLISH_NAME),
+                'language_flag': language,
+                'id': result["id"],
+                'sub_id': result["sub_id"],
+                'rating': '5',
+                'sync': subtitle_rate >= 3.8,
+                'hearing_imp': False,
+                'is_preferred': xbmc.convertLanguage(language, xbmc.ISO_639_2) == item[
+                    'preferredlanguage']
+            })
 
         return sorted(ret, key=lambda x: (x['is_preferred'], x['lang_index'], x['sync'], x['rating']), reverse=True)
 
@@ -199,17 +236,24 @@ class SubsHelper:
 
         return round(rating, 1)
 
-    def download(self, id, language, filename):
+    def download(self, id, sub_id, filename):
         ## Cleanup temp dir, we recomend you download/unzip your subs in temp folder and
         ## pass that to XBMC to copy and activate
         if xbmcvfs.exists(__temp__):
             shutil.rmtree(__temp__)
         xbmcvfs.mkdirs(__temp__)
 
-        query = {"request": {"subtitleID": id}}
+        query = {
+            "request": {
+                "FilmID": id,
+                "SubtitleID": sub_id,
+                "FontSize": 0,
+                "FontColor": "",
+                "PredefinedLayout": -1}}
 
-        f = self.urlHandler.request(self.BASE_URL + "Download", query)
-
+        response = self.urlHandler.request(self.BASE_URL + "/ContentProvider.svc/RequestSubtitleDownload", data=query)
+        f = self.urlHandler.request(self.BASE_URL + '/DownloadFile.ashx',
+                                    query_string={"DownloadIdentifier": response["DownloadIdentifier"]})
         with open(filename, "wb") as subFile:
             subFile.write(f)
         subFile.close()
@@ -253,7 +297,8 @@ class URLHandler():
                     pass
 
             if response.headers.get('content-type', '').startswith('application/json'):
-                content = json.loads(json.loads(content, encoding="utf-8"), encoding="utf-8")
+                parsed_content = json.loads(content, encoding="utf-8")
+                content = json.loads(parsed_content["d"], encoding="utf-8")
 
             response.close()
         except Exception as e:

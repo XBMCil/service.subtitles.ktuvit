@@ -55,19 +55,19 @@ def search(item):
             else:
                 listitem.setProperty("hearing_imp", "false")
 
-            url = "plugin://%s/?action=download&id=%s&filename=%s&language=%s" % (
-                __scriptid__, it["id"], it["filename"], it["language_flag"])
+            url = "plugin://%s/?action=download&id=%s&sub_id=%s&filename=%s&language=%s" % (
+                __scriptid__, it["id"], it["sub_id"], it["filename"], it["language_flag"])
             xbmcplugin.addDirectoryItem(handle=int(sys.argv[1]), url=url, listitem=listitem, isFolder=False)
 
 
-def download(id, language, filename):
+def download(id, sub_id, filename, language):
     subtitle_list = []
     exts = [".srt", ".sub"]
 
-    filename = os.path.join(__temp__, "%s.srt" % filename)
+    filename = os.path.join(__temp__, "%s.%s.srt" % (filename, language))
 
     helper = SubsHelper()
-    helper.download(id, language, filename)
+    helper.download(id, sub_id, filename)
 
     for file in xbmcvfs.listdir(__temp__)[1]:
         full_path = os.path.join(__temp__, file)
@@ -133,12 +133,14 @@ def collect_initial_data():
         item_data['season'] = str(xbmc.getInfoLabel("VideoPlayer.Season"))  # Season
         item_data['episode'] = str(xbmc.getInfoLabel("VideoPlayer.Episode"))  # Episode
         item_data['tvshow'] = normalizeString(xbmc.getInfoLabel("VideoPlayer.TVshowtitle"))  # Show
-        item_data['title'] = normalizeString(xbmc.getInfoLabel("VideoPlayer.OriginalTitle"))  # try to get original title
+        item_data['title'] = normalizeString(
+            xbmc.getInfoLabel("VideoPlayer.OriginalTitle"))  # try to get original title
         item_data['file_original_path'] = unquote(xbmc.Player().getPlayingFile())  # Full path of a playing file
 
         if item_data['title'] == "":
             log("VideoPlayer.OriginalTitle not found")
-            item_data['title'] = normalizeString(xbmc.getInfoLabel("VideoPlayer.Title"))  # no original title, get just Title
+            item_data['title'] = normalizeString(
+                xbmc.getInfoLabel("VideoPlayer.Title"))  # no original title, get just Title
 
     else:
         item_data['year'] = xbmc.getInfoLabel("ListItem.Year")
@@ -195,7 +197,7 @@ if params['action'] in ['search', 'manualsearch']:
 
 elif params['action'] == 'download':
     ## we pickup all our arguments sent from def search()
-    subs = download(params["id"], params["language"], params["filename"])
+    subs = download(params["id"], params["sub_id"], params["filename"], params["language"])
     ## we can return more than one subtitle for multi CD versions, for now we are still working out how to handle that in XBMC core
     for sub in subs:
         listitem = xbmcgui.ListItem(label=sub)
@@ -203,7 +205,7 @@ elif params['action'] == 'download':
 
 elif params['action'] == 'login':
     helper = SubsHelper()
-    helper.login(True)
+    helper.login()
     __addon__.openSettings()
 
 xbmcplugin.endOfDirectory(int(sys.argv[1]))  ## send end of directory to XBMC
