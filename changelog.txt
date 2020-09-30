@@ -1,3 +1,7 @@
+2.0.0 - by CaTz (30/09/2020)
+- Rename to ktuvit.me
+- Add support for downloading tvshow subs
+
 1.2.0 - by sagiben (13/12/2019)
 - Add support for KODI 19
 
@@ -6,9 +10,6 @@
 
 1.1.0 - by CaTz (30/11/2019)
 - Add the ability to search subs on focused item.
-
-1.0.0 - by CaTz (23/11/2019)
-- Initial release of the addon
 
 1.0.0 - by CaTz (23/11/2019)
 - Initail release of the addon
