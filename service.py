@@ -40,11 +40,9 @@ def search(item):
     subtitles_list = helper.get_subtitle_list(item)
     if subtitles_list:
         for it in subtitles_list:
-            listitem = xbmcgui.ListItem(label=it["language_name"],
-                                        label2=it["filename"],
-                                        iconImage=it["rating"],
-                                        thumbnailImage=it["language_flag"]
-                                        )
+            listitem = xbmcgui.ListItem(label=it["language_name"], label2=it["filename"])
+            listitem.setArt({'icon': str(it["rating"]), 'thumb': it["language_flag"]})
+
             if it["sync"]:
                 listitem.setProperty("sync", "true")
             else:

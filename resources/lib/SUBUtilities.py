@@ -145,9 +145,7 @@ class SubsHelper:
             notify(32001)
             return results  # return empty set
 
-        ids = []
-        for result in search_result["Films"]:
-            ids.append(result["ID"])
+        ids = self._get_filtered_ids(search_result["Films"], search_string)
 
         if item["tvshow"]:
             results = self._search_tvshow(item, ids)
@@ -190,13 +188,14 @@ class SubsHelper:
 
     def _build_subtitle_list(self, search_results, item):
         language = 'he'
+        lang3 = xbmc.convertLanguage(language, xbmc.ISO_639_2)
         ret = []
         for result in search_results:
             title = result["rls"]
             subtitle_rate = self._calc_rating(title, item["file_original_path"])
 
-            ret.append({'lang_index': item["3let_language"].index(
-                xbmc.convertLanguage(language, xbmc.ISO_639_2)),
+            ret.append({
+                'lang_index': item["3let_language"].index(lang3),
                 'filename': title,
                 'language_name': xbmc.convertLanguage(language, xbmc.ENGLISH_NAME),
                 'language_flag': language,
@@ -205,10 +204,9 @@ class SubsHelper:
                 'rating': '5',
                 'sync': subtitle_rate >= 3.8,
                 'hearing_imp': False,
-                'is_preferred': xbmc.convertLanguage(language, xbmc.ISO_639_2) == item[
-                    'preferredlanguage']
+                'is_preferred': lang3 == item['preferredlanguage']
             })
-
+        log('List %s' % ret)
         return sorted(ret, key=lambda x: (x['is_preferred'], x['lang_index'], x['sync'], x['rating']), reverse=True)
 
     def _calc_rating(self, subsfile, file_original_path):
@@ -257,6 +255,21 @@ class SubsHelper:
         with open(filename, "wb") as subFile:
             subFile.write(f)
         subFile.close()
+
+    def _get_filtered_ids(self, list, search_string):
+        ids = []
+
+        for result in list:
+            eng_name = regexHelper.sub(' ', result['EngName'])
+            eng_name_tmp = regexHelper.sub('', eng_name)
+            heb_name = regexHelper.sub('', result['HebName'])
+
+            if (search_string.startswith(eng_name_tmp) or eng_name_tmp.startswith(search_string) or
+                    search_string.startswith(heb_name) or heb_name.startswith(search_string)):
+                ids.append(result["ID"])
+
+        return ids
+
 
 
 class URLHandler():
