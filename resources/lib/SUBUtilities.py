@@ -13,11 +13,13 @@ from bs4 import BeautifulSoup
 
 try:
     # Python 3 - Kodi 19
-    from urllib.request import Request, build_opener
+    from http.cookiejar import LWPCookieJar
+    from urllib.request import Request, build_opener, HTTPCookieProcessor
     from urllib.parse import urlencode
 except ImportError:
     # Python 2 - Kodi 18 and below
-    from urllib2 import Request, build_opener
+    from cookielib import LWPCookieJar
+    from urllib2 import Request, build_opener, HTTPCookieProcessor
     from urllib import urlencode
 
 __addon__ = xbmcaddon.Addon()
@@ -146,9 +148,12 @@ class SubsHelper:
             return results  # return empty set
 
         ids = self._get_filtered_ids(search_result["Films"], search_string)
+        log("Filtered Ids: %s" % ids)
 
         if item["tvshow"]:
             results = self._search_tvshow(item, ids)
+        else:
+            results = self._search_movie(ids)
 
         log("Subtitles: %s" % results)
 
@@ -166,10 +171,10 @@ class SubsHelper:
             }
             raw_html = self.urlHandler.request(self.BASE_URL + "/GetModuleAjax.ashx", query_string=query_string)
 
-            movie_list = BeautifulSoup(raw_html, "html.parser")
-            movie_rows = movie_list.find_all("tr")
+            sub_list = BeautifulSoup(raw_html, "html.parser")
+            sub_rows = sub_list.find_all("tr")
 
-            for row in movie_rows:
+            for row in sub_rows:
                 columns = row.find_all("td")
                 sub = {
                     'id': id
@@ -178,9 +183,38 @@ class SubsHelper:
                     if index == 0:
                         sub['rls'] = column.get_text().strip().split("\n")[0]
                     if index == 4:
-                        sub['downloads'] = column.get_text().strip()
+                        sub['downloads'] = int(column.get_text().strip())
                     if index == 5:
                         sub['sub_id'] = column.find("input", attrs={"data-sub-id": True})["data-sub-id"]
+
+                subs.append(sub)
+
+        return subs
+
+    def _search_movie(self, ids):
+        subs = []
+
+        for movie_id in ids:
+            query_string = {
+                "ID": movie_id,
+            }
+            raw_html = self.urlHandler.request(self.BASE_URL + "/../MovieInfo.aspx", query_string=query_string)
+            html = BeautifulSoup(raw_html, "html.parser")
+            sub_rows = html.select("table#subtitlesList tbody > tr")
+            log('html %s' % sub_rows)
+
+            for row in sub_rows:
+                columns = row.find_all("td")
+                sub = {
+                    'id': movie_id
+                }
+                for index, column in enumerate(columns):
+                    if index == 0:
+                        sub['rls'] = column.get_text().strip().split("\n")[0]
+                    if index == 4:
+                        sub['downloads'] = int(column.get_text().strip())
+                    if index == 5:
+                        sub['sub_id'] = column.find("a", attrs={"data-subtitle-id": True})["data-subtitle-id"]
 
                 subs.append(sub)
 
@@ -189,10 +223,12 @@ class SubsHelper:
     def _build_subtitle_list(self, search_results, item):
         language = 'he'
         lang3 = xbmc.convertLanguage(language, xbmc.ISO_639_2)
+        total_downloads = 0
         ret = []
         for result in search_results:
             title = result["rls"]
             subtitle_rate = self._calc_rating(title, item["file_original_path"])
+            total_downloads += result['downloads']
 
             ret.append({
                 'lang_index': item["3let_language"].index(lang3),
@@ -201,12 +237,18 @@ class SubsHelper:
                 'language_flag': language,
                 'id': result["id"],
                 'sub_id': result["sub_id"],
-                'rating': '5',
+                'rating': result['downloads'],
                 'sync': subtitle_rate >= 3.8,
                 'hearing_imp': False,
                 'is_preferred': lang3 == item['preferredlanguage']
             })
-        log('List %s' % ret)
+
+        # Fix the rating
+        if total_downloads:
+            for it in ret:
+                log('rating %s totals %s' % (it['rating'], total_downloads))
+                it["rating"] = str(int(round(it["rating"] / float(total_downloads), 1) * 5))
+
         return sorted(ret, key=lambda x: (x['is_preferred'], x['lang_index'], x['sync'], x['rating']), reverse=True)
 
     def _calc_rating(self, subsfile, file_original_path):
@@ -256,25 +298,46 @@ class SubsHelper:
             subFile.write(f)
         subFile.close()
 
+    def login(self, notify_success=False):
+        email = __addon__.getSetting("email")
+        password = __addon__.getSetting("password")
+        post_data = {"request": {"Email": email, "Password": password}}
+
+        response = self.urlHandler.request(self.BASE_URL + "/MembershipService.svc/Login", data=post_data)
+
+        if response["IsSuccess"] is True:
+            self.urlHandler.save_cookie()
+            if notify_success:
+                notify(32007)
+            return True
+        else:
+            notify(32005)
+            return None
+
     def _get_filtered_ids(self, list, search_string):
         ids = []
 
+        search_string = regexHelper.sub('', search_string).lower()
+
         for result in list:
-            eng_name = regexHelper.sub(' ', result['EngName'])
-            eng_name_tmp = regexHelper.sub('', eng_name)
+            eng_name = regexHelper.sub('', regexHelper.sub(' ', result['EngName'])).lower()
             heb_name = regexHelper.sub('', result['HebName'])
 
-            if (search_string.startswith(eng_name_tmp) or eng_name_tmp.startswith(search_string) or
+            if (search_string.startswith(eng_name) or eng_name.startswith(search_string) or
                     search_string.startswith(heb_name) or heb_name.startswith(search_string)):
                 ids.append(result["ID"])
 
         return ids
 
 
-
-class URLHandler():
+class URLHandler:
     def __init__(self):
-        self.opener = build_opener()
+        cookie_filename = os.path.join(__profile__, "cookiejar.txt")
+        self.cookie_jar = LWPCookieJar(cookie_filename)
+        if os.access(cookie_filename, os.F_OK):
+            self.cookie_jar.load()
+
+        self.opener = build_opener(HTTPCookieProcessor(self.cookie_jar))
         self.opener.addheaders = [('Accept-Encoding', 'gzip'),
                                   ('Accept-Language', 'en-us,en;q=0.5'),
                                   ('Pragma', 'no-cache'),
@@ -318,3 +381,11 @@ class URLHandler():
             log("Failed to get url: %s\n%s" % (url, e))
             # Second parameter is the filename
         return content
+
+    def save_cookie(self):
+        # extend cookie expiration
+        for cookie in self.cookie_jar:
+            if cookie.expires is not None:
+                cookie.expires += 2 * 12 * 30 * 24 * 60 * 60
+
+        self.cookie_jar.save()

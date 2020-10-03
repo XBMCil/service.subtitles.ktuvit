@@ -17,3 +17,27 @@ msgstr ""
 msgctxt "#32001"
 msgid "Error while searching subtitles"
 msgstr "שגיאה בעת חיפוש הכתוביות"
+
+msgctxt "#32002"
+msgid "Email"
+msgstr "אימייל"
+
+msgctxt "#32003"
+msgid "Encoded Password"
+msgstr "סיסמא מוצפנת"
+
+msgctxt "#32004"
+msgid "Login Details"
+msgstr "פרטי התחברות"
+
+msgctxt "#32005"
+msgid "Check login details"
+msgstr "בדוק את פרטי ההתחברות"
+
+msgctxt "#32006"
+msgid "Wrong email or password"
+msgstr "האימייל או הסיסמא אינם נכונים"
+
+msgctxt "#32007"
+msgid "Logged in successfully"
+msgstr "ההתחברות עברה בהצלחה"

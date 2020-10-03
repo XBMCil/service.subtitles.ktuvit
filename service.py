@@ -203,7 +203,7 @@ elif params['action'] == 'download':
 
 elif params['action'] == 'login':
     helper = SubsHelper()
-    helper.login()
+    helper.login(True)
     __addon__.openSettings()
 
 xbmcplugin.endOfDirectory(int(sys.argv[1]))  ## send end of directory to XBMC
