@@ -16,5 +16,5 @@
 - Add the ability to search subs on focused item.
 
 1.0.0 - by CaTz (23/11/2019)
-- Initail release of the addon
+- Initial release of the addon
 
