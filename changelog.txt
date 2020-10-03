@@ -1,3 +1,7 @@
+2.1.0 - by CaTz (03/10/2020)
+- Filter better tv show search results
+- Add language flag to subs list
+
 2.0.0 - by CaTz (30/09/2020)
 - Rename to ktuvit.me
 - Add support for downloading tvshow subs
