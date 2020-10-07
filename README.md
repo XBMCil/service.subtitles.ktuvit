@@ -6,7 +6,8 @@ Ktuvit.me subtitle service for Kodi
 In order to get the encoded password:
 
 1. Open [ktuvit.me](https://www.ktuvit.me) in the browser
-2. Open [developer tools](https://developers.google.com/web/tools/chrome-devtools/open)
+2. Open [developer tools](https://developers.google.com/web/tools/chrome-devtools/open)  (in Windows <kbd>ctrl</kbd> + <kbd>shift</kbd> + <kbd>c</kbd>
+)
 3. Enter this code in the **console**: 
 ```javascript
 x = { value: 'MY-APSSWORD' };
