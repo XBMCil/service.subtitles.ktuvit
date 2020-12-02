@@ -1,3 +1,6 @@
+3.0.0 - by CaTz (02/12/2020)
+- Add support for Kodi 19 Beta
+
 2.2.1 - by CaTz (03/10/2020)
 - Downgrade beautifulsoup version
 
