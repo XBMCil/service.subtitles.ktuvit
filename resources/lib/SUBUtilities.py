@@ -11,16 +11,9 @@ import xbmcvfs
 import xbmcaddon
 from bs4 import BeautifulSoup
 
-try:
-    # Python 3 - Kodi 19
-    from http.cookiejar import LWPCookieJar
-    from urllib.request import Request, build_opener, HTTPCookieProcessor
-    from urllib.parse import urlencode
-except ImportError:
-    # Python 2 - Kodi 18 and below
-    from cookielib import LWPCookieJar
-    from urllib2 import Request, build_opener, HTTPCookieProcessor
-    from urllib import urlencode
+from http.cookiejar import LWPCookieJar
+from urllib.request import Request, build_opener, HTTPCookieProcessor
+from urllib.parse import urlencode
 
 __addon__ = xbmcaddon.Addon()
 __version__ = __addon__.getAddonInfo('version')  # Module version

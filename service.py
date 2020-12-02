@@ -9,14 +9,7 @@ import xbmcgui
 import xbmcplugin
 import xbmcvfs
 
-try:
-    # Python 3 - Kodi 19
-    from urllib.parse import urlparse, unquote
-    from urllib.request import Request
-except ImportError:
-    # Python 2 - Kodi 18 and below
-    from urlparse import urlparse, unquote
-    from urllib2 import Request
+from urllib.parse import unquote
 
 __addon__ = xbmcaddon.Addon()
 __author__ = __addon__.getAddonInfo('author')
