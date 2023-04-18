@@ -19,8 +19,8 @@ __addon__ = xbmcaddon.Addon()
 __version__ = __addon__.getAddonInfo('version')  # Module version
 __scriptname__ = __addon__.getAddonInfo('name')
 __language__ = __addon__.getLocalizedString
-__profile__ = xbmc.translatePath(__addon__.getAddonInfo('profile'))
-__temp__ = xbmc.translatePath(os.path.join(__profile__, 'temp', ''))
+__profile__ = xbmcvfs.translatePath(__addon__.getAddonInfo('profile'))
+__temp__ = xbmcvfs.translatePath(os.path.join(__profile__, 'temp', ''))
 __kodi_version__ = xbmc.getInfoLabel('System.BuildVersion').split(' ')[0]
 
 regexHelper = re.compile('\W+', re.UNICODE)
@@ -297,7 +297,7 @@ class SubsHelper:
         post_data = {"request": {"Email": email, "Password": password}}
 
         response = self.urlHandler.request(self.BASE_URL + "/MembershipService.svc/Login", data=post_data)
-
+        log(response)
         if response["IsSuccess"] is True:
             self.urlHandler.save_cookie()
             if notify_success:
@@ -366,8 +366,8 @@ class URLHandler:
                     pass
 
             if response.headers.get('content-type', '').startswith('application/json'):
-                parsed_content = json.loads(content, encoding="utf-8")
-                content = json.loads(parsed_content["d"], encoding="utf-8")
+                parsed_content = json.loads(content)
+                content = json.loads(parsed_content["d"])
 
             response.close()
         except Exception as e:
