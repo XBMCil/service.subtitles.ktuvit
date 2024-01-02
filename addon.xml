@@ -9,7 +9,7 @@
     <summary lang="en_GB">Ktuvit.me</summary>
     <description lang="en_GB">Search and Download subtitles from ktuvit.me.</description>
     <source>https://github.com/XBMCil/service.subtitles.ktuvit</source>
-    <license>GNU GENERAL PUBLIC LICENSE. Version 2, June 1991</license>
+    <license>GPL-2.0-or-later</license>
     <assets>
         <icon>icon.png</icon>
     </assets>
